@@ -1,46 +1,35 @@
 services:
   openclaw-gateway:
-    image: ${OPENCLAW_IMAGE:-openclaw:local}
-    environment:
-      HOME: /home/node
-      TERM: xterm-256color
-      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
-      CLAUDE_AI_SESSION_KEY: ${CLAUDE_AI_SESSION_KEY}
-      CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
-      CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
-    volumes:
-      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
-      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
-    ports:
-      - "${OPENCLAW_GATEWAY_PORT:-18789}:18789"
-      - "${OPENCLAW_BRIDGE_PORT:-18790}:18790"
-    init: true
+    build:
+      context: .
+      args:
+        - OPENCLAW_INSTALL_BROWSER=1
+        - OPENCLAW_DOCKER_APT_PACKAGES=jq curl wget
+    image: openclaw-local:latest
+    container_name: openclaw-gateway
     restart: unless-stopped
+    # init is critical for reaping zombie Chromium processes
+    init: true
+    env_file: .env
+    environment:
+      - HOME=/home/node
+      - NODE_ENV=production
+      - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
+      # This fix ensures both root (build) and node (runtime) use the same path
+      - PLAYWRIGHT_BROWSERS_PATH=/app/ms-playwright
+    volumes:
+      - ${OPENCLAW_CONFIG_DIR:-/home/ubuntu/.openclaw}:/home/node/.openclaw
+      - ${OPENCLAW_WORKSPACE_DIR:-/home/ubuntu/.openclaw/workspace}:/home/node/.openclaw/workspace
+    ports:
+      - "127.0.0.1:18789:18789"
     command:
       [
         "node",
         "dist/index.js",
         "gateway",
         "--bind",
-        "${OPENCLAW_GATEWAY_BIND:-lan}",
+        "lan",
         "--port",
         "18789",
+        "--allow-unconfigured"
       ]
-
-  openclaw-cli:
-    image: ${OPENCLAW_IMAGE:-openclaw:local}
-    environment:
-      HOME: /home/node
-      TERM: xterm-256color
-      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
-      BROWSER: echo
-      CLAUDE_AI_SESSION_KEY: ${CLAUDE_AI_SESSION_KEY}
-      CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
-      CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
-    volumes:
-      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
-      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
-    stdin_open: true
-    tty: true
-    init: true
-    entrypoint: ["node", "dist/index.js"]
