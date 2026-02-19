@@ -34,6 +34,14 @@ export type BrowserConfig = {
   attachOnly?: boolean;
   /** Default profile to use when profile param is omitted. Default: "chrome" */
   defaultProfile?: string;
+  /** Default timezone for managed browser process (IANA ID, e.g. Europe/Budapest). */
+  timezoneId?: string;
+  /** Default proxy server for managed browser launch args (e.g. http://host:3128). */
+  proxyServer?: string;
+  /** Default browser UI/network language (e.g. hu-HU). */
+  lang?: string;
+  /** Default Accept-Language value (e.g. hu-HU,hu). */
+  acceptLanguage?: string;
   /** Named browser profiles with explicit CDP ports or URLs. */
   profiles?: Record<string, BrowserProfileConfig>;
   /** Default snapshot options (applied by the browser tool/CLI when unset). */

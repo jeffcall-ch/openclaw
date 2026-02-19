@@ -17,6 +17,10 @@ services:
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
       # This fix ensures both root (build) and node (runtime) use the same path
       - PLAYWRIGHT_BROWSERS_PATH=/app/ms-playwright
+      - HU_PLAYWRIGHT_PROXY_URL=${HU_PLAYWRIGHT_PROXY_URL:-}
+      - HU_BROWSER_LANG=${HU_BROWSER_LANG:-}
+      - HU_BROWSER_ACCEPT_LANGUAGE=${HU_BROWSER_ACCEPT_LANGUAGE:-}
+      - HU_BROWSER_TIMEZONE=${HU_BROWSER_TIMEZONE:-}
     volumes:
       - ${OPENCLAW_CONFIG_DIR:-/home/ubuntu/.openclaw}:/home/node/.openclaw
       - ${OPENCLAW_WORKSPACE_DIR:-/home/ubuntu/.openclaw/workspace}:/home/node/.openclaw/workspace

@@ -155,6 +155,125 @@ describe("browser config", () => {
     expect(resolved.extraArgs).toEqual([]);
   });
 
+  it("injects HU browser env defaults into extraArgs and timezone", () => {
+    const prevProxy = process.env.HU_PLAYWRIGHT_PROXY_URL;
+    const prevLang = process.env.HU_BROWSER_LANG;
+    const prevAcceptLanguage = process.env.HU_BROWSER_ACCEPT_LANGUAGE;
+    const prevTimezone = process.env.HU_BROWSER_TIMEZONE;
+    process.env.HU_PLAYWRIGHT_PROXY_URL = "http://playwright_hu:secret@185.65.68.104:3128";
+    process.env.HU_BROWSER_LANG = "hu-HU";
+    process.env.HU_BROWSER_ACCEPT_LANGUAGE = "hu-HU,hu";
+    process.env.HU_BROWSER_TIMEZONE = "Europe/Budapest";
+    try {
+      const resolved = resolveBrowserConfig(undefined);
+      expect(resolved.extraArgs).toContain(
+        "--proxy-server=http://playwright_hu:secret@185.65.68.104:3128",
+      );
+      expect(resolved.extraArgs).toContain("--lang=hu-HU");
+      expect(resolved.extraArgs).toContain("--accept-lang=hu-HU,hu");
+      expect(resolved.timezoneId).toBe("Europe/Budapest");
+    } finally {
+      if (prevProxy === undefined) {
+        delete process.env.HU_PLAYWRIGHT_PROXY_URL;
+      } else {
+        process.env.HU_PLAYWRIGHT_PROXY_URL = prevProxy;
+      }
+      if (prevLang === undefined) {
+        delete process.env.HU_BROWSER_LANG;
+      } else {
+        process.env.HU_BROWSER_LANG = prevLang;
+      }
+      if (prevAcceptLanguage === undefined) {
+        delete process.env.HU_BROWSER_ACCEPT_LANGUAGE;
+      } else {
+        process.env.HU_BROWSER_ACCEPT_LANGUAGE = prevAcceptLanguage;
+      }
+      if (prevTimezone === undefined) {
+        delete process.env.HU_BROWSER_TIMEZONE;
+      } else {
+        process.env.HU_BROWSER_TIMEZONE = prevTimezone;
+      }
+    }
+  });
+
+  it("rejects authenticated SOCKS5 proxy URL from env with actionable error", () => {
+    const prevProxy = process.env.HU_PLAYWRIGHT_PROXY_URL;
+    process.env.HU_PLAYWRIGHT_PROXY_URL =
+      "socks5://playwright_hu:secret@185.65.68.104:1080";
+    try {
+      expect(() => resolveBrowserConfig(undefined)).toThrow(
+        /Authenticated SOCKS5 is not supported by Chromium/i,
+      );
+    } finally {
+      if (prevProxy === undefined) {
+        delete process.env.HU_PLAYWRIGHT_PROXY_URL;
+      } else {
+        process.env.HU_PLAYWRIGHT_PROXY_URL = prevProxy;
+      }
+    }
+  });
+
+  it("prefers browser proxy/lang config keys over HU_* env defaults", () => {
+    const prevProxy = process.env.HU_PLAYWRIGHT_PROXY_URL;
+    const prevLang = process.env.HU_BROWSER_LANG;
+    const prevAcceptLanguage = process.env.HU_BROWSER_ACCEPT_LANGUAGE;
+    process.env.HU_PLAYWRIGHT_PROXY_URL = "http://env-proxy.example:3128";
+    process.env.HU_BROWSER_LANG = "hu-HU";
+    process.env.HU_BROWSER_ACCEPT_LANGUAGE = "hu-HU,hu";
+    try {
+      const resolved = resolveBrowserConfig({
+        proxyServer: "http://cfg-proxy.example:3128",
+        lang: "en-US",
+        acceptLanguage: "en-US,en",
+      });
+      expect(resolved.extraArgs).toContain("--proxy-server=http://cfg-proxy.example:3128");
+      expect(resolved.extraArgs).toContain("--lang=en-US");
+      expect(resolved.extraArgs).toContain("--accept-lang=en-US,en");
+      expect(resolved.extraArgs).not.toContain("--proxy-server=http://env-proxy.example:3128");
+    } finally {
+      if (prevProxy === undefined) {
+        delete process.env.HU_PLAYWRIGHT_PROXY_URL;
+      } else {
+        process.env.HU_PLAYWRIGHT_PROXY_URL = prevProxy;
+      }
+      if (prevLang === undefined) {
+        delete process.env.HU_BROWSER_LANG;
+      } else {
+        process.env.HU_BROWSER_LANG = prevLang;
+      }
+      if (prevAcceptLanguage === undefined) {
+        delete process.env.HU_BROWSER_ACCEPT_LANGUAGE;
+      } else {
+        process.env.HU_BROWSER_ACCEPT_LANGUAGE = prevAcceptLanguage;
+      }
+    }
+  });
+
+  it("rejects authenticated SOCKS5 in browser.proxyServer", () => {
+    expect(() =>
+      resolveBrowserConfig({
+        proxyServer: "socks5://user:pass@127.0.0.1:1080",
+      }),
+    ).toThrow(/Authenticated SOCKS5 is not supported by Chromium/i);
+  });
+
+  it("prefers browser.timezoneId over HU_BROWSER_TIMEZONE env", () => {
+    const prevTimezone = process.env.HU_BROWSER_TIMEZONE;
+    process.env.HU_BROWSER_TIMEZONE = "Europe/Budapest";
+    try {
+      const resolved = resolveBrowserConfig({
+        timezoneId: "UTC",
+      });
+      expect(resolved.timezoneId).toBe("UTC");
+    } finally {
+      if (prevTimezone === undefined) {
+        delete process.env.HU_BROWSER_TIMEZONE;
+      } else {
+        process.env.HU_BROWSER_TIMEZONE = prevTimezone;
+      }
+    }
+  });
+
   it("passes through valid extraArgs strings", () => {
     const resolved = resolveBrowserConfig({
       extraArgs: ["--no-sandbox", "--disable-gpu"],

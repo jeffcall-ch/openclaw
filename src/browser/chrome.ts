@@ -231,6 +231,7 @@ export async function launchOpenClawChrome(
         ...process.env,
         // Reduce accidental sharing with the user's env.
         HOME: os.homedir(),
+        ...(resolved.timezoneId ? { TZ: resolved.timezoneId } : {}),
       },
     });
   };

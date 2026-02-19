@@ -31,6 +31,7 @@ export type ResolvedBrowserConfig = {
   attachOnly: boolean;
   defaultProfile: string;
   profiles: Record<string, BrowserProfileConfig>;
+  timezoneId?: string;
   extraArgs: string[];
 };
 
@@ -84,6 +85,37 @@ export function parseHttpUrl(raw: string, label: string) {
     port,
     normalized: parsed.toString().replace(/\/$/, ""),
   };
+}
+
+function resolveProxyServerArg(rawUrl: string, label: string): string | undefined {
+  const trimmed = rawUrl.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    throw new Error(`${label} must be a valid proxy URL`);
+  }
+
+  const protocol = parsed.protocol.toLowerCase();
+  if (protocol === "socks5:" || protocol === "socks5h:") {
+    if (parsed.username || parsed.password) {
+      throw new Error(
+        `Authenticated SOCKS5 is not supported by Chromium in this launch path. Use an HTTP(S) CONNECT proxy URL (${label}) instead.`,
+      );
+    }
+    return trimmed;
+  }
+  if (protocol === "http:" || protocol === "https:") {
+    return trimmed;
+  }
+
+  throw new Error(
+    `${label} must use http://, https://, socks5://, or socks5h://`,
+  );
 }
 
 /**
@@ -200,6 +232,37 @@ export function resolveBrowserConfig(
   const extraArgs = Array.isArray(cfg?.extraArgs)
     ? cfg.extraArgs.filter((a): a is string => typeof a === "string" && a.trim().length > 0)
     : [];
+  const configuredProxyServerArg = resolveProxyServerArg(
+    String(cfg?.proxyServer ?? ""),
+    "browser.proxyServer",
+  );
+  const huProxyServerArg = resolveProxyServerArg(
+    String(process.env.HU_PLAYWRIGHT_PROXY_URL ?? ""),
+    "HU_PLAYWRIGHT_PROXY_URL",
+  );
+  const proxyServerArg = configuredProxyServerArg || huProxyServerArg;
+  const browserLang = cfg?.lang?.trim() || String(process.env.HU_BROWSER_LANG ?? "").trim();
+  const browserAcceptLanguage =
+    cfg?.acceptLanguage?.trim() || String(process.env.HU_BROWSER_ACCEPT_LANGUAGE ?? "").trim();
+  const timezoneId =
+    cfg?.timezoneId?.trim() || String(process.env.HU_BROWSER_TIMEZONE ?? "").trim() || undefined;
+
+  const addExtraArg = (arg: string) => {
+    if (!extraArgs.includes(arg)) {
+      extraArgs.push(arg);
+    }
+  };
+
+  if (proxyServerArg) {
+    addExtraArg(`--proxy-server=${proxyServerArg}`);
+  }
+  if (browserLang) {
+    addExtraArg(`--lang=${browserLang}`);
+  }
+  if (browserAcceptLanguage) {
+    // Keep Accept-Language deterministic for Chromium networking.
+    addExtraArg(`--accept-lang=${browserAcceptLanguage}`);
+  }
 
   return {
     enabled,
@@ -217,6 +280,7 @@ export function resolveBrowserConfig(
     attachOnly,
     defaultProfile,
     profiles,
+    timezoneId,
     extraArgs,
   };
 }

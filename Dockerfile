@@ -8,6 +8,11 @@ RUN corepack enable
 
 WORKDIR /app
 
+# Keep Playwright browser binaries in a stable app-local path that both
+# build-time (root) and runtime (node) can access.
+ENV PLAYWRIGHT_BROWSERS_PATH=/app/ms-playwright
+RUN mkdir -p /app/ms-playwright
+
 ARG OPENCLAW_DOCKER_APT_PACKAGES=""
 RUN if [ -n "$OPENCLAW_DOCKER_APT_PACKAGES" ]; then \
       apt-get update && \

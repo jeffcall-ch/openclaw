@@ -220,6 +220,10 @@ export const OpenClawSchema = z
         noSandbox: z.boolean().optional(),
         attachOnly: z.boolean().optional(),
         defaultProfile: z.string().optional(),
+        timezoneId: z.string().optional(),
+        proxyServer: z.string().optional(),
+        lang: z.string().optional(),
+        acceptLanguage: z.string().optional(),
         snapshotDefaults: BrowserSnapshotDefaultsSchema,
         profiles: z
           .record(
